@@ -1,0 +1,8 @@
+# Обов'язкові залежності (Python 3.8+)
+# Пакет contrib містить усе з opencv-python + AKAZE для OpenCV 5.x.
+# Якщо вже встановлено opencv-python 4.x — він теж підходить (AKAZE там є в основному пакеті).
+opencv-contrib-python>=4.5
+numpy>=1.20
+
+# Необов'язково — лише для повторної генерації тестового набору (tools/make_dataset.py):
+# scikit-image>=0.19

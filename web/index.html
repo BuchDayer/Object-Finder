@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Пошук об'єкта за зразком</title>
+<style>
+  :root {
+    --bg: #f4f2ee; --panel: #ffffff; --ink: #1d1f24; --muted: #6b6f78; --line: #e2dfd8;
+    --accent: #2f5bd3; --ok: #1f8a4c; --ok-bg: #e5f4ea; --bad: #c2372b; --bad-bg: #fbe9e7;
+    --chip: #f1efe9; --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.45 "Segoe UI", system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--ink); }
+  header { padding: 14px 22px; border-bottom: 1px solid var(--line); background: var(--panel); display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+  header h1 { font-size: 18px; margin: 0; letter-spacing: -.01em; }
+  header .sub { color: var(--muted); font-size: 13px; }
+  .layout { display: grid; grid-template-columns: 340px 1fr; min-height: calc(100vh - 54px); }
+  aside { background: var(--panel); border-right: 1px solid var(--line); padding: 16px 18px 40px; overflow-y: auto; max-height: calc(100vh - 54px); position: sticky; top: 0; }
+  main { padding: 18px 22px 40px; min-width: 0; }
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 20px 0 10px; font-weight: 600; }
+  h2:first-child { margin-top: 0; }
+  label.f { display: block; margin: 12px 0 2px; font-weight: 600; font-size: 13px; }
+  .row { display: flex; align-items: center; gap: 10px; }
+  .row input[type=range] { flex: 1; accent-color: var(--accent); }
+  .val { font-family: var(--mono); font-size: 12px; min-width: 44px; text-align: right; background: var(--chip); border-radius: 4px; padding: 1px 6px; }
+  .hint { color: var(--muted); font-size: 12px; margin: 2px 0 0; }
+  select, input[type=file] { width: 100%; font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+  .seg { display: flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
+  .seg button { flex: 1; border: 0; background: #fff; padding: 7px 0; font: inherit; font-weight: 600; cursor: pointer; color: var(--muted); }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button.on { background: var(--accent); color: #fff; }
+  .check { display: flex; gap: 8px; align-items: center; margin-top: 12px; font-weight: 600; font-size: 13px; }
+  .check input { accent-color: var(--accent); width: 16px; height: 16px; }
+  .thumbs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+  .thumbs figure { margin: 0; background: var(--chip); border-radius: 6px; padding: 6px; text-align: center; }
+  .thumbs img { max-width: 100%; max-height: 110px; display: block; margin: 0 auto; }
+  .thumbs figcaption { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .btns { display: flex; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
+  .btn { border: 1px solid var(--line); background: #fff; padding: 8px 12px; border-radius: 7px; font: inherit; font-weight: 600; cursor: pointer; }
+  .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .status { border-radius: 10px; padding: 14px 16px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; border: 1px solid var(--line); background: var(--panel); }
+  .status.ok { background: var(--ok-bg); border-color: #b9dfc7; }
+  .status.bad { background: var(--bad-bg); border-color: #f0c4bf; }
+  .status .big { font-size: 20px; font-weight: 700; }
+  .status.ok .big { color: var(--ok); } .status.bad .big { color: var(--bad); }
+  .status .reason { color: var(--ink); }
+  .expect { font-size: 12px; color: var(--muted); margin-left: auto; }
+  .funnel { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin: 14px 0; }
+  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; }
+  .stat .k { font-size: 11px; color: var(--muted); }
+  .stat .v { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .stat .v small { font-size: 12px; color: var(--muted); font-weight: 500; }
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-top: 8px; flex-wrap: wrap; }
+  .tabs button { border: 0; background: none; padding: 9px 12px; font: inherit; font-weight: 600; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .tabs button.on { color: var(--ink); border-bottom-color: var(--accent); }
+  .tabdesc { color: var(--muted); font-size: 13px; margin: 10px 0; }
+  .view { background: #1b1c20; border-radius: 8px; padding: 6px; min-height: 200px; display: flex; justify-content: center; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .view img { max-width: 100%; max-height: 72vh; border-radius: 4px; }
+  .view.two img { max-width: calc(50% - 4px); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 16px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+  .card h3 { margin: 0 0 8px; font-size: 13px; }
+  pre { font-family: var(--mono); font-size: 12px; margin: 0; white-space: pre-wrap; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+  th { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
+  .yes { color: var(--ok); font-weight: 700; } .no { color: var(--bad); font-weight: 700; }
+  .busy { opacity: .55; transition: opacity .15s; }
+  .err { color: var(--bad); font-weight: 600; }
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; } aside { position: static; max-height: none; border-right: 0; border-bottom: 1px solid var(--line); }
+    .funnel { grid-template-columns: repeat(2, 1fr); } .grid2 { grid-template-columns: 1fr; } main { padding: 16px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Пошук об'єкта за фотографією-зразком</h1>
+  <span class="sub">ORB / AKAZE / SIFT · тест Лоу · RANSAC · гомографія — варіант 18</span>
+</header>
+<div class="layout">
+<aside>
+  <h2>Вхідні дані</h2>
+  <label class="f" for="case">Тестовий випадок</label>
+  <select id="case"></select>
+  <p class="hint">Синтетичні сцени з відомою правильною відповіддю — програма покаже похибку в пікселях.</p>
+  <label class="f" for="ftemplate">…або власний зразок</label>
+  <input type="file" id="ftemplate" accept="image/*">
+  <label class="f" for="fscene">…і власна сцена</label>
+  <input type="file" id="fscene" accept="image/*">
+  <div class="thumbs">
+    <figure><img id="tT" alt=""><figcaption>зразок</figcaption></figure>
+    <figure><img id="tS" alt=""><figcaption>сцена</figcaption></figure>
+  </div>
+
+  <h2>Детектор і дескриптор</h2>
+  <div class="seg" id="detector">
+    <button data-v="ORB" class="on">ORB</button><button data-v="AKAZE">AKAZE</button><button data-v="SIFT">SIFT</button>
+  </div>
+  <p class="hint">ORB — швидкий бінарний (Геммінг). SIFT — точніший, float (L2), повільніший.</p>
+
+  <label class="f">Кількість ключових точок <span class="hint">(ORB, SIFT)</span></label>
+  <div class="row"><input type="range" id="n_features" min="200" max="6000" step="100"><span class="val" id="n_features_v"></span></div>
+
+  <h2>Зіставлення</h2>
+  <label class="f">Поріг тесту Лоу (ratio)</label>
+  <div class="row"><input type="range" id="ratio" min="0.5" max="0.95" step="0.01"><span class="val" id="ratio_v"></span></div>
+  <p class="hint">Пара приймається, якщо d₁ &lt; ratio·d₂. Менше — суворіше (менше хибних пар, але й менше правильних).</p>
+  <label class="check"><input type="checkbox" id="cross_check"> Взаємна перевірка (cross-check)</label>
+
+  <h2>RANSAC і гомографія</h2>
+  <label class="f" for="ransac_method">Метод</label>
+  <select id="ransac_method"><option>RANSAC</option><option>MAGSAC</option></select>
+  <label class="f">Поріг перепроєкції, px</label>
+  <div class="row"><input type="range" id="ransac_thresh" min="0.5" max="20" step="0.5"><span class="val" id="ransac_thresh_v"></span></div>
+  <p class="hint">Наскільки далеко точка може лягти від передбаченої H, щоб вважатися inlier.</p>
+  <label class="f">Мін. кількість добрих пар</label>
+  <div class="row"><input type="range" id="min_matches" min="4" max="60" step="1"><span class="val" id="min_matches_v"></span></div>
+  <label class="f">Мін. кількість inliers</label>
+  <div class="row"><input type="range" id="min_inliers" min="4" max="80" step="1"><span class="val" id="min_inliers_v"></span></div>
+  <p class="hint">Головний поріг рішення «знайдено / не знайдено».</p>
+  <label class="f">Мін. частка inliers</label>
+  <div class="row"><input type="range" id="min_inlier_ratio" min="0" max="0.9" step="0.05"><span class="val" id="min_inlier_ratio_v"></span></div>
+  <label class="f">Мін. покриття зразка inliers</label>
+  <div class="row"><input type="range" id="min_coverage" min="0" max="0.8" step="0.05"><span class="val" id="min_coverage_v"></span></div>
+  <p class="hint">Частка клітинок сітки 4×4 на зразку, де є inlier. Відсікає збіги лише за однаковим шрифтом/логотипом.</p>
+
+  <h2>Інше</h2>
+  <label class="check"><input type="checkbox" id="use_clahe"> CLAHE — вирівнювання контрасту</label>
+  <label class="f">Скільки копій шукати</label>
+  <div class="row"><input type="range" id="max_instances" min="1" max="5" step="1"><span class="val" id="max_instances_v"></span></div>
+
+  <div class="btns">
+    <button class="btn primary" id="run">Знайти</button>
+    <button class="btn" id="compare">Порівняти детектори</button>
+    <button class="btn" id="reset">Скинути</button>
+  </div>
+</aside>
+
+<main id="main">
+  <div class="status" id="status"><span class="big">…</span><span class="reason">Завантаження</span></div>
+
+  <div class="funnel">
+    <div class="stat"><div class="k">Ключові точки: зразок / сцена</div><div class="v" id="sKp">–</div></div>
+    <div class="stat"><div class="k">Добрі пари (тест Лоу)</div><div class="v" id="sGood">–</div></div>
+    <div class="stat"><div class="k">Inliers після RANSAC · покриття</div><div class="v" id="sIn">–</div></div>
+    <div class="stat"><div class="k">Похибка кутів vs еталон</div><div class="v" id="sErr">–</div></div>
+    <div class="stat"><div class="k">Час обробки</div><div class="v" id="sTime">–</div></div>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <button data-t="result" class="on">Результат</button>
+    <button data-t="inliers">Inliers (RANSAC)</button>
+    <button data-t="good">Пари після тесту Лоу</button>
+    <button data-t="kp">Ключові точки</button>
+  </div>
+  <p class="tabdesc" id="tabdesc"></p>
+  <div class="view" id="view"></div>
+
+  <div class="grid2">
+    <div class="card"><h3>Гомографія H (зразок → сцена)</h3><pre id="H">–</pre></div>
+    <div class="card"><h3>Час етапів, мс</h3><pre id="times">–</pre></div>
+  </div>
+  <div class="card" style="margin-top:14px" id="cmpCard" hidden>
+    <h3>Порівняння детекторів (ті самі інші параметри)</h3>
+    <table><thead><tr><th>Детектор</th><th>Результат</th><th>Точки T/S</th><th>Добрі пари</th><th>Inliers</th><th>Похибка, px</th><th>Час, мс</th><th>Пояснення</th></tr></thead><tbody id="cmp"></tbody></table>
+  </div>
+</main>
+</div>
+
+<script>
+const DEFAULTS = { detector: "ORB", n_features: 3000, ratio: 0.75, cross_check: false, ransac_method: "RANSAC",
+  ransac_thresh: 5.0, min_matches: 10, min_inliers: 15, min_inlier_ratio: 0.15, min_coverage: 0.3, use_clahe: false, max_instances: 1 };
+const RANGES = ["n_features", "ratio", "ransac_thresh", "min_matches", "min_inliers", "min_inlier_ratio", "min_coverage", "max_instances"];
+const TABDESC = {
+  result: "Рамка — кути зразка, перенесені на сцену гомографією H. Червона точка — лівий верхній кут зразка (видно орієнтацію).",
+  inliers: "Лише пари, що узгоджуються зі знайденою гомографією (RANSAC inliers). Саме вони визначають положення об'єкта.",
+  good: "Пари, що пройшли тест Лоу. Серед них ще є хибні (outliers) — RANSAC їх відкидає.",
+  kp: "Ключові точки: розмір кола — масштаб, лінія — орієнтація. Ліворуч — зразок, праворуч — сцена."
+};
+const $ = id => document.getElementById(id);
+let state = { template: null, scene: null, case_id: null, params: { ...DEFAULTS }, last: null, tab: "result", cases: [] };
+let timer = null, reqNo = 0;
+
+function setControls(p) {
+  document.querySelectorAll("#detector button").forEach(b => b.classList.toggle("on", b.dataset.v === p.detector));
+  RANGES.forEach(k => { $(k).value = p[k]; $(k + "_v").textContent = p[k]; });
+  $("cross_check").checked = p.cross_check; $("use_clahe").checked = p.use_clahe; $("ransac_method").value = p.ransac_method;
+}
+function readControls() {
+  const p = state.params;
+  RANGES.forEach(k => { p[k] = parseFloat($(k).value); $(k + "_v").textContent = $(k).value; });
+  p.cross_check = $("cross_check").checked; p.use_clahe = $("use_clahe").checked; p.ransac_method = $("ransac_method").value;
+}
+function schedule() { readControls(); clearTimeout(timer); timer = setTimeout(run, 250); }
+
+async function post(url, body) {
+  const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const j = await r.json(); if (j.error) throw new Error(j.error); return j;
+}
+
+async function run() {
+  if (!state.template || !state.scene) return;
+  const my = ++reqNo; $("main").classList.add("busy");
+  try {
+    const j = await post("/api/find", { template: state.template, scene: state.scene, params: state.params, case_id: state.case_id });
+    if (my !== reqNo) return;
+    state.last = j; render();
+  } catch (e) {
+    $("status").className = "status bad"; $("status").innerHTML = `<span class="big">Помилка</span><span class="err">${e.message}</span>`;
+  } finally { if (my === reqNo) $("main").classList.remove("busy"); }
+}
+
+function render() {
+  const j = state.last; if (!j) return;
+  const c = state.cases.find(x => x.id === state.case_id);
+  const exp = c ? `<span class="expect">очікування: <b>${c.expected === "not_found" ? "не знайдено" : c.expected === "found x2" ? "2 об'єкти" : "знайдено"}</b> · ${c.category}</span>` : "";
+  $("status").className = "status " + (j.found ? "ok" : "bad");
+  $("status").innerHTML = `<span class="big">${j.found ? "Знайдено" + (j.instances > 1 ? ` × ${j.instances}` : "") : "Не знайдено"}</span><span class="reason">${j.reason}</span>${exp}`;
+  $("sKp").innerHTML = `${j.keypoints_template} <small>/ ${j.keypoints_scene}</small>`;
+  $("sGood").innerHTML = `${j.good_matches} <small>з ${j.raw_matches}</small>`;
+  const d0 = j.detections[0];
+  $("sIn").innerHTML = d0 ? `${j.detections.map(d => d.inliers).join(" + ")} <small>${Math.round(d0.inlier_ratio * 100)}% · ${d0.coverage.toFixed(2)}</small>` : "0";
+  $("sErr").innerHTML = j.gt_error_px ? j.gt_error_px.map(e => e.toFixed(1)).join(" / ") + " <small>px</small>" : (state.case_id ? "–" : "<small>немає еталону</small>");
+  $("sTime").innerHTML = `${Math.round(j.timings_ms.total)} <small>мс</small>`;
+  $("H").textContent = d0 ? j.detections.map((d, i) => `#${i + 1}\n` + d.H.map(r => r.map(v => v.toFixed(4).padStart(11)).join(" ")).join("\n")).join("\n\n") : "— (модель не прийнята)";
+  const names = { detect_template: "детекція зразка", detect_scene: "детекція сцени", match: "зіставлення", homography: "RANSAC + перевірка", total: "разом (без зразка)" };
+  $("times").textContent = Object.entries(j.timings_ms).map(([k, v]) => `${(names[k] || k).padEnd(20)} ${v.toFixed(1).padStart(8)}`).join("\n");
+  showTab();
+}
+
+function showTab() {
+  const j = state.last; if (!j) return;
+  document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.t === state.tab));
+  $("tabdesc").textContent = TABDESC[state.tab];
+  const v = $("view"); v.className = "view";
+  if (state.tab === "kp") { v.classList.add("two"); v.innerHTML = `<img src="${j.images.kp_template}"><img src="${j.images.kp_scene}">`; }
+  else if (state.tab === "inliers" && !j.images.inliers) v.innerHTML = `<p style="color:#bbb">Модель не прийнята — inliers немає. Подивіться вкладку «Пари після тесту Лоу».</p>`;
+  else v.innerHTML = `<img src="${j.images[state.tab]}">`;
+}
+
+async function compare() {
+  if (!state.template || !state.scene) return;
+  $("cmpCard").hidden = false; $("cmp").innerHTML = `<tr><td colspan="8">Обчислення…</td></tr>`;
+  try {
+    const j = await post("/api/compare", { template: state.template, scene: state.scene, params: state.params, case_id: state.case_id });
+    $("cmp").innerHTML = j.rows.map(r => r.error ? `<tr><td>${r.detector}</td><td colspan="7" class="err">${r.error}</td></tr>` :
+      `<tr><td><b>${r.detector}</b></td><td class="${r.found ? "yes" : "no"}">${r.found ? "знайдено" + (r.instances > 1 ? " ×" + r.instances : "") : "ні"}</td>
+       <td>${r.kp_template} / ${r.kp_scene}</td><td>${r.good}</td><td>${r.inliers}</td><td>${r.gt_error_px ? r.gt_error_px.map(e => e.toFixed(1)).join(" / ") : "–"}</td>
+       <td>${r.time_ms}</td><td style="color:var(--muted)">${r.reason}</td></tr>`).join("");
+  } catch (e) { $("cmp").innerHTML = `<tr><td colspan="8" class="err">${e.message}</td></tr>`; }
+}
+
+function selectCase(id) {
+  const c = state.cases.find(x => x.id === id); if (!c) return;
+  state.case_id = id; state.template = { sample: c.template }; state.scene = { sample: c.scene };
+  $("tT").src = "/data/" + c.template; $("tS").src = "/data/" + c.scene;
+  state.params.max_instances = c.expected === "found x2" ? 2 : 1; setControls(state.params);
+  $("ftemplate").value = ""; $("fscene").value = ""; $("cmpCard").hidden = true;
+  run();
+}
+
+function fileTo(input, key, thumb) {
+  input.addEventListener("change", () => {
+    const f = input.files[0]; if (!f) return;
+    const rd = new FileReader();
+    rd.onload = () => { state[key] = { data: rd.result }; $(thumb).src = rd.result; state.case_id = null; $("case").value = ""; $("cmpCard").hidden = true; run(); };
+    rd.readAsDataURL(f);
+  });
+}
+
+async function init() {
+  setControls(DEFAULTS);
+  RANGES.forEach(k => $(k).addEventListener("input", schedule));
+  ["cross_check", "use_clahe", "ransac_method"].forEach(k => $(k).addEventListener("change", schedule));
+  document.querySelectorAll("#detector button").forEach(b => b.addEventListener("click", () => {
+    state.params.detector = b.dataset.v; setControls(state.params); schedule();
+  }));
+  document.querySelectorAll("#tabs button").forEach(b => b.addEventListener("click", () => { state.tab = b.dataset.t; showTab(); }));
+  $("run").onclick = run; $("compare").onclick = compare;
+  $("reset").onclick = () => { const inst = state.params.max_instances; state.params = { ...DEFAULTS, max_instances: inst }; setControls(state.params); run(); };
+  $("case").onchange = e => e.target.value && selectCase(e.target.value);
+  fileTo($("ftemplate"), "template", "tT"); fileTo($("fscene"), "scene", "tS");
+
+  const s = await (await fetch("/api/samples")).json();
+  state.cases = s.cases;
+  $("case").innerHTML = `<option value="">— власні файли —</option>` + s.cases.map(c => `<option value="${c.id}">${c.id} · ${c.description}</option>`).join("");
+  if (s.cases.length) { $("case").value = s.cases[0].id; selectCase(s.cases[0].id); }
+}
+init();
+</script>
+</body>
+</html>
